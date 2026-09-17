@@ -1,0 +1,21 @@
+# datasets & model artifacts — never commit
+data/
+models/
+*.keras
+*.h5
+*.pth
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# notebooks
+.ipynb_checkpoints/
+
+# streamlit
+.streamlit/secrets.toml
+
+# os
+.DS_Store

@@ -1,0 +1,12 @@
+[project]
+name = "emotion_analyzer"
+version = "0.1.0"
+description = "Standalone real-time facial emotion recognition system"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["emotion_analyzer*"]

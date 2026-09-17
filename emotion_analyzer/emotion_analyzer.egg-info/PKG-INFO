@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: emotion_analyzer
+Version: 0.1.0
+Summary: Standalone real-time facial emotion recognition system
+Requires-Python: >=3.10
