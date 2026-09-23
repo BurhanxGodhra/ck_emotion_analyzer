@@ -194,6 +194,10 @@ Structural constraints, inherent to the current design, not resolved by more eng
 5. **Weighted or learned fusion.** The current fusion strategy is a plain average of the two channels' VA points; a confidence-weighted or learned fusion is a natural next step.
 6. **Wire the integration story into working code.** The README's "Where this fits" section describes this suite feeding `bci-speller`/`mi-bci-pipeline`; that connection is currently a documented plan, not implemented code (see `docs/PROJECT_NARRATIVE.md` §3).
 
+## Licensing note on training data
+
+The facial model is trained on FER2013, RAF-DB, and AffectNet (confidence-filtered) combined — not FER2013 alone. This project's data-licensing decisions (see `docs/decisions.md` D-001, superseded by D-017) were made in a personal/portfolio, non-commercial context, where the original restrictive-dataset concerns don't apply the same way they would to a redistributed or commercial product. **If you fork this project for a different purpose** — especially anything commercial or redistributed — re-evaluate AffectNet, RAF-DB, and DREAMER's access terms independently; their request-gated, research-use licenses still apply to that underlying data regardless of what this project chose to do with it.
+
 ## Citations
 
 This project is built on:
