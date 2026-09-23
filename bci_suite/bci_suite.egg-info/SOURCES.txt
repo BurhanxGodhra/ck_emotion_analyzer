@@ -1,0 +1,16 @@
+pyproject.toml
+bci_suite/__init__.py
+bci_suite.egg-info/PKG-INFO
+bci_suite.egg-info/SOURCES.txt
+bci_suite.egg-info/dependency_links.txt
+bci_suite.egg-info/top_level.txt
+bci_suite/eeg/__init__.py
+bci_suite/eeg/eeg_classifier.py
+bci_suite/eeg/eeg_loaders.py
+bci_suite/eeg/eeg_train.py
+bci_suite/eeg/eegnet.py
+bci_suite/eeg/preprocessing.py
+bci_suite/fusion/__init__.py
+bci_suite/fusion/fusion_model.py
+bci_suite/utils/__init__.py
+bci_suite/utils/sync.py
