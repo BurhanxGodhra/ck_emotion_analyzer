@@ -208,6 +208,15 @@ This project is built on:
 - **Streaming protocol**: Lab Streaming Layer (LSL) — [labstreaminglayer.org](https://labstreaminglayer.org)
 - **Hardware bridge**: [BrainFlow](https://brainflow.org)
 
+## Security note
+
+Both the FastAPI server (`emotion_analyzer/emotion_analyzer/api/main.py`) and the subprocess-launching stream infrastructure (`bci_suite/bci_suite/eeg/stream_launcher.py`) are configured for **local development on your own machine, not for exposure beyond localhost**:
+
+- The FastAPI server's CORS policy (`allow_origins=["*"]`) accepts requests from any origin — appropriate for a local dev server, not for a public deployment. Tighten this before hosting it anywhere reachable outside your own machine.
+- `stream_launcher.py` passes user-supplied values (a serial port string, a board selection) into subprocess arguments. In this project's single-user, local-only threat model this is low-risk, but it has not been hardened against a multi-user or network-exposed deployment scenario — don't expose this app to untrusted users without adding input validation first.
+
+Flagged by external audit (EXTERNAL_REVIEW.md F-013).
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
