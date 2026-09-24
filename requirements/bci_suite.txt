@@ -1,0 +1,19 @@
+streamlit
+mne
+scikit-learn
+numpy
+pandas
+plotly
+matplotlib
+
+# EEG model training, export, and live inference — previously missing from
+# this file despite being required by bci_suite/eeg/*.py. Found via
+# external audit (EXTERNAL_REVIEW.md F-005): a fresh clone following
+# requirements/bci_suite.txt alone could not actually run this code.
+torch
+onnx
+onnxscript
+onnxruntime
+scipy
+pylsl
+brainflow
