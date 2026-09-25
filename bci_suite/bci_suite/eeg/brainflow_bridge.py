@@ -54,7 +54,14 @@ def run(board_id: int, serial_port: str = ""):
 
     try:
         while True:
-            data = board.get_current_board_data(1)  # pull whatever's newly available
+            # get_board_data() DRAINS the buffer (removes what it returns);
+            # get_current_board_data(n) only PEEKS at the latest n samples
+            # without removing them. The original version used the latter,
+            # which on a continuous polling loop means samples are read
+            # multiple times (duplicated) and the buffer grows unbounded
+            # between reads — a real bug, not a style preference. Flagged
+            # by external audit (EXTERNAL_REVIEW.md F-011).
+            data = board.get_board_data()
             if data.shape[1] > 0:
                 for i in range(data.shape[1]):
                     sample = [data[ch][i] for ch in eeg_channels]

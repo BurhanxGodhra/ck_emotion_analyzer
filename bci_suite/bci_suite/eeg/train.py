@@ -34,6 +34,20 @@ BATCH_SIZE = 64
 EPOCHS = 30
 LEARNING_RATE = 1e-3
 DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+RANDOM_SEED = 42
+
+# The train/test SPLIT was already seeded (GroupShuffleSplit's random_state),
+# but nothing in the actual training loop was — weight initialization and
+# minibatch shuffling order were both unseeded, meaning two runs against the
+# identical split could (and did: 48.6% then 45.3% on a verified-identical
+# rerun) produce different trained models and different final test accuracy.
+# Flagged by external audit (EXTERNAL_REVIEW.md F-007/F-020) as a reason not
+# to trust a single run's number as stable; this seed makes at least this
+# specific source of run-to-run variance reproducible rather than eliminating
+# the deeper issue (a 5-participant test set is still small — see README
+# Roadmap for repeated cross-validation as the real fix for that).
+torch.manual_seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
 
 
 def main():

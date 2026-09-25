@@ -80,8 +80,27 @@ if mode == "Live stream (headset or replay)":
                              "Click 'Connect to EEG stream' below once it's up.")
             else:
                 board_label = st.selectbox("Headset", list(SUPPORTED_BOARDS.keys()))
+                board_info = SUPPORTED_BOARDS[board_label]
+                if board_info["model_compatible"] == "no":
+                    st.error(
+                        f"⛔ This board has {board_info['channel_count']} channels — "
+                        f"the model needs 14. This headset can never work with this "
+                        f"model, regardless of connection settings. Listed for "
+                        f"completeness (BrainFlow supports it for other purposes), "
+                        f"not because it's usable here."
+                    )
+                elif board_info["model_compatible"] == "possible":
+                    st.warning(
+                        f"⚠️ This board has {board_info['channel_count']} channels — "
+                        f"enough IF your montage reports standard 10-20 electrode "
+                        f"names (AF3, F7, etc.) for all 14 required positions. "
+                        f"OpenBCI's default channel naming is often generic, not "
+                        f"these standard labels — connection will succeed but "
+                        f"name-matching may correctly refuse if your setup doesn't "
+                        f"report them. Not guaranteed to work out of the box."
+                    )
                 serial_port = ""
-                if SUPPORTED_BOARDS[board_label]["needs_serial_port"]:
+                if board_info["needs_serial_port"]:
                     serial_port = st.text_input(
                         "Serial port", placeholder="e.g. /dev/cu.usbserial-XXXX"
                     )
@@ -202,8 +221,11 @@ if mode == "Live stream (headset or replay)":
                     metadata = finetune_from_calibration(windows, quadrants, model_name)
 
                 st.success(
-                    f"Saved **{metadata['name']}** — trained on {metadata['n_examples']} examples, "
-                    f"{metadata['final_train_acc'] * 100:.0f}% final training accuracy. "
+                    f"Saved **{metadata['name']}** — trained on {metadata['n_train_examples']} examples, "
+                    f"held-out accuracy on {metadata['n_holdout_examples']} unseen examples: "
+                    f"{metadata['holdout_acc'] * 100:.0f}% (training-set accuracy: "
+                    f"{metadata['train_acc'] * 100:.0f}%). With this few examples, "
+                    f"treat the held-out number as indicative, not precise. "
                     "Select it on the Fusion Demo page to use it."
                 )
         elif n_collected > 0:

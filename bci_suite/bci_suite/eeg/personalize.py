@@ -45,7 +45,20 @@ def finetune_from_calibration(
 ) -> dict:
     """Fine-tunes the generic model on the given pairs and saves the result
     under models/eeg/personalized/<model_name>.{pt,onnx} + metadata.json.
-    Returns a summary dict (final training accuracy, example count, path)."""
+    Returns a summary dict (held-out accuracy, example count, path).
+
+    A held-out split is carved out BEFORE fine-tuning and never trained on,
+    so the reported accuracy reflects genuine generalization on this
+    person's own held-back examples — not just how well the model fit the
+    exact data it was fine-tuned on. Flagged by external audit
+    (EXTERNAL_REVIEW.md F-010): the original version reported only
+    final_train_acc, i.e. accuracy on the same data just fine-tuned on,
+    which overstates how well the personalized model actually works.
+
+    With realistically small calibration sets (tens to low hundreds of
+    examples), a held-out slice this small is itself a rough estimate, not
+    a rigorous one — reported and labeled as such, not oversold.
+    """
 
     if not GENERIC_CHECKPOINT.exists():
         raise FileNotFoundError(
@@ -60,23 +73,36 @@ def finetune_from_calibration(
     X = np.stack(windows).astype(np.float32)[:, np.newaxis, :, :]  # (N, 1, C, T)
     y = np.array([QUADRANT_TO_IDX[q] for q in quadrant_labels], dtype=np.int64)
 
-    X_t = torch.from_numpy(X)
-    y_t = torch.from_numpy(y)
+    # Held-out split, carved out before any training happens. With very few
+    # examples (e.g. k=80), an 80/20 split leaves only ~16 held-out examples
+    # — small enough that this number should be read as indicative, not
+    # precise, and is reported as such in the returned metadata.
+    n = len(X)
+    rng = np.random.RandomState(42)
+    indices = rng.permutation(n)
+    n_holdout = max(1, int(n * 0.2))
+    holdout_idx, train_idx = indices[:n_holdout], indices[n_holdout:]
+
+    X_train_t = torch.from_numpy(X[train_idx])
+    y_train_t = torch.from_numpy(y[train_idx])
+    X_holdout_t = torch.from_numpy(X[holdout_idx])
+    y_holdout_t = torch.from_numpy(y[holdout_idx])
 
     optimizer = torch.optim.Adam(model.parameters(), lr=FINETUNE_LR)
     criterion = nn.CrossEntropyLoss()
 
     model.train()
-    final_acc = 0.0
     for epoch in range(FINETUNE_EPOCHS):
         optimizer.zero_grad()
-        logits = model(X_t)
-        loss = criterion(logits, y_t)
+        logits = model(X_train_t)
+        loss = criterion(logits, y_train_t)
         loss.backward()
         optimizer.step()
-        final_acc = (logits.argmax(1) == y_t).float().mean().item()
 
     model.eval()
+    with torch.no_grad():
+        train_acc = (model(X_train_t).argmax(1) == y_train_t).float().mean().item()
+        holdout_acc = (model(X_holdout_t).argmax(1) == y_holdout_t).float().mean().item()
 
     # Export — same pattern as train.py's fallback path
     onnx_path = PERSONALIZED_DIR / f"{model_name}.onnx"
@@ -103,7 +129,16 @@ def finetune_from_calibration(
     metadata = {
         "name": model_name,
         "n_examples": len(windows),
-        "final_train_acc": final_acc,
+        "n_train_examples": len(train_idx),
+        "n_holdout_examples": len(holdout_idx),
+        "train_acc": train_acc,
+        "holdout_acc": holdout_acc,
+        "holdout_note": (
+            "Held-out accuracy on this person's own examples never trained "
+            "on — a genuine (if small-sample) generalization estimate, not "
+            "just training-set fit. With few calibration examples, treat "
+            "this as indicative, not precise."
+        ),
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "base_model": str(GENERIC_CHECKPOINT),
     }

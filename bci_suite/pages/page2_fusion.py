@@ -151,8 +151,20 @@ with col2:
                             board_label = st.selectbox(
                                 "Headset", list(SUPPORTED_BOARDS.keys()), key="fusion_board_select"
                             )
+                            board_info = SUPPORTED_BOARDS[board_label]
+                            if board_info["model_compatible"] == "no":
+                                st.error(
+                                    f"⛔ {board_info['channel_count']} channels — model "
+                                    f"needs 14. Cannot work with this model."
+                                )
+                            elif board_info["model_compatible"] == "possible":
+                                st.warning(
+                                    f"⚠️ {board_info['channel_count']} channels — only "
+                                    f"works if your montage reports standard 10-20 "
+                                    f"electrode names for all 14 required positions."
+                                )
                             serial_port = ""
-                            if SUPPORTED_BOARDS[board_label]["needs_serial_port"]:
+                            if board_info["needs_serial_port"]:
                                 serial_port = st.text_input(
                                     "Serial port", placeholder="e.g. /dev/cu.usbserial-XXXX",
                                     key="fusion_serial_port",
