@@ -36,8 +36,14 @@ DREAMER_MAT_PATH = Path("data/raw/dreamer/DREAMER.mat")
 SAMPLING_RATE_HZ = 128
 WINDOW_SECONDS = 4
 WINDOW_SAMPLES = SAMPLING_RATE_HZ * WINDOW_SECONDS  # 512
-VALENCE_AROUSAL_THRESHOLD = 3.0  # DREAMER ratings are 1-5; midpoint split, matching
-                                  # the torcheeg reference usage (transforms.Binary(3.0))
+# Fixed threshold binarization at 3.0 (NOT a computed median of the actual
+# rating distribution) — DREAMER ratings are 1-5, so this splits at the
+# scale's midpoint. Matches the torcheeg reference usage
+# (transforms.Binary(3.0)). Flagged by external audit (EXTERNAL_REVIEW.md
+# F-009): "median split" was previously used loosely to describe this,
+# which is inaccurate terminology worth correcting — a true median split
+# would be threshold-independent and data-driven, this isn't.
+VALENCE_AROUSAL_THRESHOLD = 3.0
 
 EEG_CHANNELS = [  # standard Emotiv EPOC 14-channel montage, fixed order
     "AF3", "F7", "F3", "FC5", "T7", "P7", "O1",

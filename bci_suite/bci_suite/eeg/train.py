@@ -62,8 +62,23 @@ def main():
     n_train_p = len(np.unique(groups[train_idx]))
     n_val_p = len(np.unique(groups[val_idx]))
     n_test_p = len(np.unique(groups[test_idx]))
-    print(f"Participants — train: {n_train_p}, val: {n_val_p}, test: {n_test_p} "
-          f"(should not overlap)")
+    print(f"Participants — train: {n_train_p}, val: {n_val_p}, test: {n_test_p}")
+
+    # Don't just print that splits shouldn't overlap — actually verify it.
+    # Flagged by external audit (EXTERNAL_REVIEW.md F-008): a comment saying
+    # "should not overlap" is not the same as a check that fails loudly if a
+    # future change (e.g. swapping GroupShuffleSplit for something else)
+    # breaks that property.
+    train_groups = set(groups[train_idx])
+    val_groups = set(groups[val_idx])
+    test_groups = set(groups[test_idx])
+    assert not (train_groups & val_groups), \
+        f"Participant leakage between train/val: {train_groups & val_groups}"
+    assert not (train_groups & test_groups), \
+        f"Participant leakage between train/test: {train_groups & test_groups}"
+    assert not (val_groups & test_groups), \
+        f"Participant leakage between val/test: {val_groups & test_groups}"
+    print("Verified: no participant appears in more than one split.")
 
     class_weights = compute_class_weight(
         class_weight="balanced", classes=np.arange(4), y=y_train
