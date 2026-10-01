@@ -73,6 +73,17 @@ def load_dreamer_windows(
             plain random split can put windows from one trial in both train
             and test, inflating accuracy. Split by participant instead — see
             train.py's use of GroupShuffleSplit.
+
+    Preprocessing (added after repeated cross-validation showed the model
+    performing at essentially chance level — 24.4% mean vs 25% chance, see
+    docs/decisions.md): each window is baseline-corrected using DREAMER's
+    own pre-stimulus baseline recording (EEG.baseline), per channel, then
+    z-score normalized per channel within the window. Neither step was
+    applied previously — raw, unnormalized EEG was fed directly to the
+    network, despite amplitude varying enormously by person, electrode
+    contact, and session. DREAMER ships baseline recordings specifically to
+    correct for this (Katsigiannis & Ramzan, 2018); they were present in the
+    data the entire time and simply never used (EXTERNAL_REVIEW.md F-017).
     """
     mat = scipy.io.loadmat(str(mat_path), squeeze_me=True, struct_as_record=False)
     dreamer = mat["DREAMER"]
@@ -81,11 +92,19 @@ def load_dreamer_windows(
     X_list, y_list, group_list = [], [], []
     for p_idx, participant in enumerate(participants):
         stimuli = participant.EEG.stimuli
+        baselines = participant.EEG.baseline
         valence_scores = participant.ScoreValence
         arousal_scores = participant.ScoreArousal
 
         for trial_idx in range(len(stimuli)):
-            trial_eeg = np.asarray(stimuli[trial_idx])  # (n_samples, 14)
+            trial_eeg = np.asarray(stimuli[trial_idx])       # (n_samples, 14)
+            baseline_eeg = np.asarray(baselines[trial_idx])  # (n_baseline_samples, 14)
+
+            # Per-channel baseline correction: subtract this trial's own
+            # pre-stimulus mean from every sample in the stimulus recording.
+            baseline_mean = baseline_eeg.mean(axis=0, keepdims=True)  # (1, 14)
+            corrected_eeg = trial_eeg - baseline_mean
+
             valence = float(valence_scores[trial_idx])
             arousal = float(arousal_scores[trial_idx])
 
@@ -97,8 +116,15 @@ def load_dreamer_windows(
             )
             label_idx = QUADRANT_TO_IDX[quadrant]
 
-            for window in _chunk_into_windows(trial_eeg, WINDOW_SAMPLES):
-                X_list.append(window)
+            for window in _chunk_into_windows(corrected_eeg, WINDOW_SAMPLES):
+                # window is (n_channels, window_samples) after the transpose
+                # inside _chunk_into_windows — normalize per channel, within window.
+                mean = window.mean(axis=1, keepdims=True)
+                std = window.std(axis=1, keepdims=True)
+                std[std < 1e-8] = 1e-8  # guard against a flat/dead channel
+                normalized_window = (window - mean) / std
+
+                X_list.append(normalized_window)
                 y_list.append(label_idx)
                 group_list.append(p_idx)
 

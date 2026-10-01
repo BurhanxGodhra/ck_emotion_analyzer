@@ -21,7 +21,7 @@ A facial-expression classifier and an EEG-based affect classifier, built indepen
 ## What this is not
 
 - Not validated against real EEG hardware in this development process — built and tested against a replayed DREAMER stream; the BrainFlow real-headset path is implemented but unverified against physical hardware
-- Not a solved cross-subject BCI problem — the EEG model's 48.6% cross-subject accuracy (chance = 25%) is a genuine, honest result on a known-hard task, not close to subject-specific performance
+- Not a solved cross-subject BCI problem, and not even a confidently-above-chance one yet — repeated cross-validation shows a small, directionally positive signal (29.3% vs. 25% chance) that is not statistically distinguishable from chance (p=0.182, see Results and `docs/decisions.md` D-019). An earlier single-run figure of 48.6% was accurate output at the time but is not a trustworthy estimate of this model's real performance, which only became clear after audit-prompted follow-up testing.
 - Not channel-count-agnostic — a headset lacking any of the 14 required electrode positions cannot use this model, a hardware fact no software fix changes (see Limitations)
 - Not a continuous, hands-free facial capture system — Streamlit's camera widget requires an explicit snapshot click; true continuous capture would need a heavier dependency (`streamlit-webrtc`) not yet integrated
 
@@ -105,12 +105,15 @@ A facial-expression classifier has limited value in isolation — plenty of apps
 
 ### EEG affect classifier (EEGNet, DREAMER, 4-class valence/arousal quadrant)
 
-| Split methodology | Test accuracy | Notes |
-|---|---|---|
-| Window-level split (leaked) | 44.4% | Windows from the same trial appeared in both train and test — inflated, erratic validation accuracy |
-| Participant-level split (corrected) | **48.6%** | 5 held-out participants never seen in training; chance = 25% |
+**A single train/test split's accuracy on this task is not a trustworthy number** — see `docs/decisions.md` D-019 for the full account of why. The honest, current result is from repeated participant-level cross-validation, not a single run:
 
-Chance level for the 4-class EEG task is 25% — 48.6% cross-subject is a genuinely hard, honest result, consistent with EEG's well-documented cross-subject generalization difficulty.
+| Evaluation | Result | Notes |
+|---|---|---|
+| Single split, unseeded (3 separate runs) | 48.6%, 45.3%, 30.4% | Identical participant split, differing only in training randomness — direct evidence a single run cannot be trusted |
+| 5-fold × 3-seed cross-validation, before baseline correction | 24.4% ± 13.6% (fold-level) | Standard deviation larger than the gap to chance — indistinguishable from chance |
+| 5-fold × 3-seed cross-validation, after baseline correction + normalization | **29.3% ± 6.0%** (fold-level, n=5) | One-sample t-test vs. 25% chance: t=1.61, **p=0.182 — not statistically significant** |
+
+**Current honest conclusion:** this EEG model shows a small, directionally positive, but statistically inconclusive signal above chance on cross-subject valence/arousal quadrant classification. It is not a working 48.6% classifier — that figure was real output at the time, but reported with more confidence than a single run on 5 held-out participants warranted. Baseline correction and per-window normalization (using DREAMER's own pre-stimulus baseline recordings, previously present in the data and unused) measurably stabilized training (std dropped from 13.6% to 6.0%) independent of whether the mean ultimately proves distinguishable from chance with more data. Reproduce this yourself: `python -m bci_suite.eeg.evaluate_cv --n-folds 5 --seeds-per-fold 3`.
 
 ## Setup
 

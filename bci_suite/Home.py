@@ -21,12 +21,15 @@ vocabulary (see `shared/valence_arousal.py`):
 
 - **Facial emotion analyzer** — a MobileNetV2 model (see the standalone
   `emotion_analyzer` package) classifying 7 discrete emotions from webcam images.
+  **67.4% test accuracy.**
 - **EEG affect classifier** — an EEGNet model (ported from the
   [mi-bci-pipeline](https://github.com/BurhanxGodhra/mi-bci-pipeline) project)
   trained on the DREAMER dataset, classifying EEG windows into one of 4
-  valence/arousal quadrants. **48.6% test accuracy** on 5 held-out
-  participants the model never trained on (chance is 25% for 4 classes) —
-  a genuinely hard cross-subject task, and an honest, non-leaked number.
+  valence/arousal quadrants. **A small, statistically inconclusive signal
+  above chance** (29.3% vs. 25% chance, p=0.182 — not significant; see
+  `docs/decisions.md` D-019 for the full story, including an earlier,
+  overstated single-run figure of 48.6% that didn't hold up under proper
+  cross-validation).
 """
 )
 
@@ -43,6 +46,16 @@ st.warning(
     icon="⚠️",
 )
 
+st.info(
+    "**On the EEG model's accuracy:** treat it as a demonstrated pipeline, "
+    "not a demonstrated working classifier yet. Repeated cross-validation "
+    "shows a modest, positive-but-inconclusive signal — not strong enough "
+    "to claim this reliably detects affect from EEG. This was found via "
+    "external audit and follow-up testing, not caught internally — see "
+    "`docs/decisions.md` D-019 for the complete, honest account.",
+    icon="📊",
+)
+
 st.markdown(
     """
 **Pages** (see sidebar):
@@ -50,8 +63,7 @@ st.markdown(
    true label is hidden until after prediction). You capture your own facial
    expression as a proxy label, and can log the pair — the same kind of
    record a real system would accumulate to fine-tune the EEG model to one
-   specific person, since a generic cross-subject model (see the 48.6%
-   above) generalizes poorly to any individual.
+   specific person.
 2. **Multimodal Fusion Demo** — combines both channels into one affect
    estimate. States explicitly why fusion matters: facial expression can be
    consciously suppressed, EEG can't be as easily — agreement between
