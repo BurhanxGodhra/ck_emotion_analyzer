@@ -5,9 +5,16 @@ Trains the facial emotion recognition model in two phases:
 
 Each run is saved to its own timestamped folder under models/facial_emotion/,
 and is only promoted to the "production" path (emotion_model.keras,
-labels.json — what the API actually loads) if its test accuracy beats the
-previously recorded best. A run that regresses can never silently overwrite
-a better model again.
+labels.json — what the API actually loads) if its VALIDATION accuracy beats
+the previously recorded best. A run that regresses can never silently
+overwrite a better model again.
+
+Promotion uses validation accuracy, not test accuracy (changed to match
+bci_suite/eeg/train.py's D-018 fix, applied here for consistency after
+external audit correctly flagged using the test set as a routine model-
+selection criterion as a methodological issue — EXTERNAL_REVIEW.md F-015).
+Test accuracy is still computed and reported once, as an honest estimate —
+just never used to make the promotion decision.
 
 Usage (from repo root, with the venv active):
     python -m emotion_analyzer.models.train
@@ -34,7 +41,10 @@ RUN_DIR.mkdir(parents=True, exist_ok=True)
 
 PROD_MODEL_PATH = MODEL_BASE_DIR / "emotion_model.keras"
 PROD_LABELS_PATH = MODEL_BASE_DIR / "labels.json"
-BEST_ACC_MARKER = MODEL_BASE_DIR / "best_test_accuracy.txt"
+BEST_ACC_MARKER = MODEL_BASE_DIR / "best_val_accuracy.txt"  # renamed from
+# best_test_accuracy.txt — it now stores validation accuracy (the actual
+# promotion criterion), and a file holding validation accuracy under a name
+# claiming it's test accuracy would be its own small honesty bug.
 
 BATCH_SIZE = 32
 PHASE1_EPOCHS = 12
@@ -147,14 +157,18 @@ def main():
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"],
     )
-    model.fit(
+    history = model.fit(
         train_ds, validation_data=val_ds, epochs=PHASE2_EPOCHS,
         class_weight=class_weight, callbacks=callbacks,
     )
+    # EarlyStopping's restore_best_weights=True already put the model's
+    # WEIGHTS at the best-val-accuracy epoch; this just reads that same
+    # epoch's value out of the training history for the promotion decision.
+    best_val_acc = max(history.history["val_accuracy"])
 
-    print("\n=== Final evaluation on held-out test set ===")
+    print("\n=== Final evaluation on held-out test set (reported, not used for promotion) ===")
     test_loss, test_acc = model.evaluate(test_ds)
-    print(f"Test accuracy: {test_acc:.4f}")
+    print(f"Test accuracy: {test_acc:.4f}  |  Best validation accuracy: {best_val_acc:.4f}")
 
     model.save(RUN_DIR / "emotion_model.keras")
     with open(RUN_DIR / "labels.json", "w") as f:
@@ -165,18 +179,21 @@ def main():
     if BEST_ACC_MARKER.exists():
         previous_best = float(BEST_ACC_MARKER.read_text().strip())
 
-    if test_acc > previous_best:
+    if best_val_acc > previous_best:
         shutil.copy(RUN_DIR / "emotion_model.keras", PROD_MODEL_PATH)
         shutil.copy(RUN_DIR / "labels.json", PROD_LABELS_PATH)
-        BEST_ACC_MARKER.write_text(str(test_acc))
+        BEST_ACC_MARKER.write_text(str(best_val_acc))
         print(
-            f"New best ({test_acc:.4f} > previous {previous_best:.4f}) — "
-            f"promoted to production model at {PROD_MODEL_PATH}"
+            f"New best validation accuracy ({best_val_acc:.4f} > previous "
+            f"{previous_best:.4f}) — promoted to production model at "
+            f"{PROD_MODEL_PATH}. (Test accuracy {test_acc:.4f} is reported "
+            f"above as an estimate, not used for this decision.)"
         )
     else:
         print(
-            f"This run ({test_acc:.4f}) did not beat the previous best "
-            f"({previous_best:.4f}) — production model left unchanged."
+            f"This run's validation accuracy ({best_val_acc:.4f}) did not "
+            f"beat the previous best ({previous_best:.4f}) — production "
+            f"model left unchanged."
         )
 
 

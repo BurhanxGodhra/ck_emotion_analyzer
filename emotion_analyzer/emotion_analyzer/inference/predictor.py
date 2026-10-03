@@ -39,6 +39,15 @@ class EmotionPredictor:
         labels_path: Path = LABELS_PATH,
         face_detector_model_path: Path = FACE_DETECTOR_MODEL_PATH,
     ):
+        # Explicit check before TF's own (much less clear) error — matches
+        # the equivalent check already present in EEGEmotionClassifier;
+        # this one was previously missing, an inconsistency caught while
+        # writing tests for this class.
+        if not Path(model_path).exists():
+            raise FileNotFoundError(
+                f"Emotion model not found at {model_path}. Train it first: "
+                "python -m emotion_analyzer.models.train"
+            )
         self.model = tf.keras.models.load_model(model_path)
         self.labels = load_labels(labels_path)
 
